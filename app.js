@@ -10,7 +10,7 @@ const h = (tag, props = {}, ...kids) => {
 const state = {
   user: null, profile: null,
   dir: {}, byUid: {}, friends: {}, requests: {},
-  chat: null, friendUid: null, reportId: null,
+  chat: null, friendUid: null, report: null,
   seq: 0, unsubMsgs: null, unsubs: []
 };
 let signupMode = false;
@@ -101,6 +101,8 @@ fb.watchAuth(async user => {
     $("meAvatar").textContent = initial(state.profile.displayName);
     show("app");
     startWatchers();
+    fb.syncAccount(user).catch(() => {});
+    fb.needsNotice().then(need => { if (need) $("noticeDlg").showModal(); }).catch(() => {});
   } catch (err) {
     toast(errText(err));
     show("auth");
@@ -190,6 +192,7 @@ async function openChat(uid) {
   $("messages").append(h("p", { className: "empty", textContent: "Loading..." }));
   $("app").classList.add("chatting");
   $("composer").classList.remove("hidden");
+  $("reportUser").classList.remove("hidden");
   try {
     const roomId = await fb.openPrivateChat(uid);
     if (my !== state.seq) return; // user switched chats meanwhile
@@ -208,6 +211,7 @@ function closeChat() {
   state.friendUid = null;
   $("app").classList.remove("chatting");
   $("composer").classList.add("hidden");
+  $("reportUser").classList.add("hidden");
   $("chatTitle").textContent = "Select a friend";
   $("messages").innerHTML = "";
   $("messages").append(h("p", { className: "empty", textContent: "Pick a friend to start a private chat." }));
@@ -231,7 +235,7 @@ function renderMessages(list) {
     if (!gone) {
       bubble.append(mine
         ? h("button", { className: "act del", title: "Delete message", textContent: "Delete", onclick: () => removeMessage(m.id) })
-        : h("button", { className: "act", title: "Report message", textContent: "Report", onclick: () => openReport(m.id) }));
+        : h("button", { className: "act", title: "Report message", textContent: "Report", onclick: () => openReport({ id: m.id }) }));
     }
     box.append(bubble);
   });
@@ -257,20 +261,31 @@ async function removeMessage(id) {
   } catch (e) { toast(errText(e)); }
 }
 
-/* ---------- Report ---------- */
-function openReport(id) {
-  state.reportId = id;
+/* ---------- Report (a message or a user) ---------- */
+function openReport(target) {
+  state.report = target;
   $("reportDlg").showModal();
 }
+$("reportUser").onclick = () => state.friendUid && openReport({ user: state.friendUid });
 $("reportCancel").onclick = () => $("reportDlg").close();
 $("reportSend").onclick = async () => {
-  if (!state.chat || !state.reportId) return;
+  const target = state.report;
+  if (!target || (!target.user && !state.chat)) return;
   const btn = $("reportSend");
   btn.disabled = true;
   try {
-    const res = await fb.reportMessage(state.chat, state.reportId, $("reason").value);
-    toast(res?.alreadyReported ? "You already reported this message." : "Report sent. Thank you!");
+    const reason = $("reason").value;
+    if (target.user) await fb.reportUser(target.user, reason);
+    else await fb.reportMessage(state.chat, target.id, reason);
+    toast("Report sent. Thank you!");
     $("reportDlg").close();
   } catch (e) { toast(errText(e)); }
   finally { btn.disabled = false; }
 };
+
+/* ---------- One-time safety notice ---------- */
+$("noticeDlg").addEventListener("cancel", e => e.preventDefault());
+$("noticeOk").onclick = async () => {
+  try { await fb.acknowledgeNotice(); $("noticeDlg").close(); } catch (e) { toast(errText(e)); }
+};
+$("noticeOut").onclick = () => { $("noticeDlg").close(); fb.signOutAccount(); };

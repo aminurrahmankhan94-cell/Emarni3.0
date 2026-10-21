@@ -10,6 +10,7 @@ import {
   signInWithCustomToken,
   signOut,
   onAuthStateChanged,
+  sendPasswordResetEmail,
   updateProfile as updateAuthProfile
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
 
@@ -25,6 +26,7 @@ import {
   runTransaction,
   query,
   orderByChild,
+  equalTo,
   limitToLast,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
@@ -413,10 +415,26 @@ export async function sendMessage(chat, text, profile) {
   return msgRef.key;
 }
 
-// Delete: the sender removes their own message from the database.
+// Delete: the sender removes their own message. A safety copy (admin-only) is kept for
+// 30 days first; the admin panel removes copies older than 30 days.
 export async function deleteMessage(chat, messageId) {
   if (!currentUser) throw new Error("Sign in first.");
-  await remove(ref(db, `privateRooms/${chat.id}/messages/${messageId}`));
+  const msgRef = ref(db, `privateRooms/${chat.id}/messages/${messageId}`);
+  const snap = await get(msgRef);
+  if (!snap.exists()) return { deleted: true };
+  const m = snap.val();
+  if (m.uid !== currentUser.uid) throw new Error("You can delete only your own messages.");
+  await set(ref(db, `moderationArchive/${messageId}`), {
+    roomId: chat.id,
+    messageId,
+    uid: m.uid,
+    senderName: m.senderName || "",
+    text: m.text || "",
+    createdAt: Number(m.createdAt) || 0,
+    deletedBy: currentUser.uid,
+    deletedAt: serverTimestamp()
+  });
+  await remove(msgRef);
   return { deleted: true };
 }
 
@@ -429,6 +447,7 @@ export async function reportMessage(chat, messageId, reason) {
   if (msg.uid === currentUser.uid) throw new Error("You cannot report your own message.");
   try {
     await set(ref(db, `reports/${messageId}_${currentUser.uid}`), {
+      type: "message",
       roomId: chat.id,
       messageId,
       reportedUid: msg.uid,
@@ -444,3 +463,49 @@ export async function reportMessage(chat, messageId, reason) {
   }
   return { reported: true };
 }
+
+// ---------- Report a user ----------
+export async function reportUser(otherUid, reason) {
+  if (!currentUser) throw new Error("Sign in first.");
+  try {
+    await set(ref(db, `reports/user_${otherUid}_${currentUser.uid}`), {
+      type: "user",
+      reportedUid: otherUid,
+      reporterUid: currentUser.uid,
+      reason: String(reason || "").trim().slice(0, 200),
+      status: "open",
+      createdAt: serverTimestamp()
+    });
+  } catch (err) {
+    if (/permission/i.test(err?.message || "")) throw new Error("Could not send the report. You may have already reported this user.");
+    throw err;
+  }
+  return { reported: true };
+}
+
+// ---------- Account email (admin-only) and one-time safety notice ----------
+export function syncAccount(user) {
+  return set(ref(db, `userAccounts/${user.uid}`), { uid: user.uid, email: user.email || "", updatedAt: serverTimestamp() });
+}
+export async function needsNotice() {
+  return !(await get(ref(db, `noticeAcks/${currentUser.uid}`))).exists();
+}
+export function acknowledgeNotice() {
+  return set(ref(db, `noticeAcks/${currentUser.uid}`), { version: 1, at: serverTimestamp() });
+}
+
+// ---------- Admin panel ----------
+export const signInEmail = (email, password) => signInWithEmailAndPassword(auth, email.trim(), password);
+export const sendResetEmail = email => sendPasswordResetEmail(auth, email);
+export const roomIdFor = (a, b) => [a, b].sort().join("__");
+export async function checkAdmin(user) {
+  return (await get(ref(db, `admins/${user.uid}`))).val() === true;
+}
+export const watchPath = (path, callback, onError) =>
+  onValue(ref(db, path), snap => callback(snap.val() || {}), err => onError?.(err));
+export const watchRoomArchive = (roomId, callback, onError) =>
+  onValue(query(ref(db, "moderationArchive"), orderByChild("roomId"), equalTo(roomId)),
+    snap => callback(snap.val() || {}), err => onError?.(err));
+export const resolveReport = id => set(ref(db, `reports/${id}/status`), "resolved");
+export const purgeArchive = keys => update(ref(db), Object.fromEntries(keys.map(k => [`moderationArchive/${k}`, null])));
+export const logAdminView = roomId => push(ref(db, "adminAudit"), { adminUid: currentUser.uid, roomId, at: serverTimestamp() });
