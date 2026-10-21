@@ -19,6 +19,7 @@ import {
   get,
   set,
   update,
+  remove,
   push,
   onValue,
   runTransaction,
@@ -370,12 +371,16 @@ export async function respondFriendRequest(
   }
 }
 
+// Private rooms are created by the clients themselves (no Cloud Functions needed).
+// Room id = both user ids, sorted and joined with "__".
 export async function openPrivateChat(otherUid) {
-  const fn = httpsCallable(functions, "openPrivateChat");
-  const result = await fn({ otherUid });
-  return result.data.roomId;
+  if (!currentUser) throw new Error("Sign in before opening a chat.");
+  if (!otherUid || otherUid === currentUser.uid) throw new Error("Choose a friend to chat with.");
+  const roomId = [currentUser.uid, otherUid].sort().join("__");
+  // Each user only marks their own membership (safe to repeat).
+  await set(ref(db, `privateRooms/${roomId}/members/${currentUser.uid}`), true);
+  return roomId;
 }
-
 
 // ---------- Private (direct) messages ----------
 const roomMessages = roomId => ref(db, `privateRooms/${roomId}/messages`);
@@ -408,13 +413,34 @@ export async function sendMessage(chat, text, profile) {
   return msgRef.key;
 }
 
-// Delete + report run through the deployed Cloud Functions (rules block direct client writes).
+// Delete: the sender removes their own message from the database.
 export async function deleteMessage(chat, messageId) {
-  const res = await httpsCallable(functions, "deleteChatMessage")({ roomType: "private", roomId: chat.id, messageId });
-  return res.data;
+  if (!currentUser) throw new Error("Sign in first.");
+  await remove(ref(db, `privateRooms/${chat.id}/messages/${messageId}`));
+  return { deleted: true };
 }
 
+// Report: saved under /reports (users can only write; only admins can read).
 export async function reportMessage(chat, messageId, reason) {
-  const res = await httpsCallable(functions, "reportChatMessage")({ roomType: "private", roomId: chat.id, messageId, reason });
-  return res.data;
+  if (!currentUser) throw new Error("Sign in first.");
+  const snap = await get(ref(db, `privateRooms/${chat.id}/messages/${messageId}`));
+  if (!snap.exists()) throw new Error("This message no longer exists.");
+  const msg = snap.val();
+  if (msg.uid === currentUser.uid) throw new Error("You cannot report your own message.");
+  try {
+    await set(ref(db, `reports/${messageId}_${currentUser.uid}`), {
+      roomId: chat.id,
+      messageId,
+      reportedUid: msg.uid,
+      reporterUid: currentUser.uid,
+      messageText: msg.text,
+      reason: String(reason || "").trim().slice(0, 200),
+      status: "open",
+      createdAt: serverTimestamp()
+    });
+  } catch (err) {
+    if (/permission/i.test(err?.message || "")) throw new Error("Could not send the report. You may have already reported this message.");
+    throw err;
+  }
+  return { reported: true };
 }

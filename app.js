@@ -24,7 +24,12 @@ const AUTH_ERRORS = {
   "auth/too-many-requests": "Too many attempts. Try again later.",
   "auth/network-request-failed": "Network error. Check your connection."
 };
-const errText = e => AUTH_ERRORS[e?.code] || String(e?.message || "Something went wrong").replace(/^Firebase:\s*/, "");
+const errText = e => {
+  const msg = String(e?.message || e?.code || "");
+  if (AUTH_ERRORS[e?.code]) return AUTH_ERRORS[e.code];
+  if (/permission[_ ]denied/i.test(msg)) return "Permission denied. Publish the latest database.rules.json in the Firebase Console.";
+  return msg.replace(/^Firebase:\s*/, "") || "Something went wrong";
+};
 const initial = name => (String(name || "?").trim()[0] || "?").toUpperCase();
 const person = uid => state.byUid[uid] || { uid, displayName: "Emarni user", emarniId: "" };
 
@@ -236,7 +241,8 @@ function renderMessages(list) {
 $("composer").onsubmit = async e => {
   e.preventDefault();
   const input = $("text"), text = input.value.trim();
-  if (!text || !state.chat) return;
+  if (!text) return;
+  if (!state.chat) return toast("Chat is still loading. Please wait a moment.");
   input.value = "";
   try { await fb.sendMessage(state.chat, text, state.profile); }
   catch (err) { input.value = text; toast(errText(err)); }
