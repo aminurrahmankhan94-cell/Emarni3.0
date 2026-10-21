@@ -1,0 +1,18 @@
+{
+  "name": "emarni-root-app",
+  "private": true,
+  "description": "Emarni web application and Firebase Functions backend kept in the repository root",
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "lint": "node --check index.js && node --check set-admin.js && node --check --input-type=module < app.js && node --check --input-type=module < firebase.js",
+    "set-admin": "node set-admin.js",
+    "deploy": "firebase deploy --only hosting,database,storage,functions"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0",
+    "firebase-functions": "^6.4.0"
+  }
+}
