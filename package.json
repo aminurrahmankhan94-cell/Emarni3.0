@@ -1,0 +1,11 @@
+{
+  "name": "emarni-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Emarni static web frontend and Firebase Functions backend",
+  "scripts": {
+    "install:functions": "npm install --prefix functions",
+    "lint:functions": "npm run lint --prefix functions",
+    "deploy:firebase": "firebase deploy --only hosting,database,storage,functions"
+  }
+}
