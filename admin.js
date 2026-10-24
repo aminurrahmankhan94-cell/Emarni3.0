@@ -48,18 +48,23 @@ $("out").onclick = () => fb.signOutAccount();
 
 fb.watchAuth(async user => {
   stop();
+  $("loginOut").classList.add("hidden");
   if (!user) return showView(false);
-  let ok = false;
-  try { ok = await fb.checkAdmin(user); } catch { /* not an admin */ }
-  if (!ok) {
-    $("loginError").textContent = `Not an admin account. To make it an admin, add admins/${user.uid} = true in Realtime Database.`;
-    await fb.signOutAccount();
+  const status = await fb.checkAdmin(user);
+  if (status !== "ok") {
+    showView(false);
+    $("loginOut").classList.remove("hidden");
+    $("loginError").textContent = status === "rules"
+      ? "Database rules are not published yet. Publish database.rules.json in the Firebase Console, then sign in again."
+      : `Signed in as ${user.email}, but this account is not an admin. In Realtime Database add: admins > ${user.uid} = true (boolean), then reload.`;
     return;
   }
+  $("loginError").textContent = "";
   live = true;
   showView(true);
   start();
 });
+$("loginOut").onclick = () => { $("loginError").textContent = ""; fb.signOutAccount(); };
 
 /* ---------- Live data ---------- */
 function start() {

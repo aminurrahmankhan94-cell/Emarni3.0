@@ -104,3 +104,5 @@ tr.click { cursor: pointer; } tr.click:hover { background: var(--panel2); }
 dialog.wide { width: min(640px, 94vw); }
 .convo { max-height: 55vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
 .msg.gone-admin { border: 1px dashed var(--danger); }
+
+a.link { text-decoration: none; }

@@ -499,7 +499,14 @@ export const signInEmail = (email, password) => signInWithEmailAndPassword(auth,
 export const sendResetEmail = email => sendPasswordResetEmail(auth, email);
 export const roomIdFor = (a, b) => [a, b].sort().join("__");
 export async function checkAdmin(user) {
-  return (await get(ref(db, `admins/${user.uid}`))).val() === true;
+  try {
+    if ((await user.getIdTokenResult()).claims.admin === true) return "ok";
+  } catch { /* fall back to the database flag */ }
+  try {
+    return (await get(ref(db, `admins/${user.uid}`))).val() === true ? "ok" : "no";
+  } catch {
+    return "rules"; // permission denied: the new database rules are not published yet
+  }
 }
 export const watchPath = (path, callback, onError) =>
   onValue(ref(db, path), snap => callback(snap.val() || {}), err => onError?.(err));

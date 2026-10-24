@@ -34,13 +34,12 @@
       <div class="me">
         <div class="avatar" id="meAvatar">E</div>
         <div class="me-info"><strong id="meName"></strong><small id="meId"></small></div>
+        <a class="link hidden" id="adminLink" href="admin.html">Admin</a>
         <button class="link" id="signOut" type="button">Sign out</button>
       </div>
 
-      <form class="add" id="addForm">
-        <input id="addId" placeholder="Add friend by Emarni ID" maxlength="12" autocomplete="off" />
-        <button class="btn sm">Add</button>
-      </form>
+      <div class="add"><input id="search" type="search" placeholder="Search people by name or Emarni ID" autocomplete="off" /></div>
+      <ul class="list" id="results"></ul>
 
       <h3>Requests</h3>
       <ul class="list" id="requests"></ul>

@@ -89,6 +89,7 @@ fb.watchAuth(async user => {
   stopAll();
   if (!user) {
     state.user = state.profile = null;
+    $("adminLink").classList.add("hidden");
     show("auth");
     hideSplash();
     return;
@@ -102,6 +103,7 @@ fb.watchAuth(async user => {
     show("app");
     startWatchers();
     fb.syncAccount(user).catch(() => {});
+    fb.checkAdmin(user).then(s => $("adminLink").classList.toggle("hidden", s !== "ok"));
     fb.needsNotice().then(need => { if (need) $("noticeDlg").showModal(); }).catch(() => {});
   } catch (err) {
     toast(errText(err));
@@ -119,8 +121,9 @@ function startWatchers() {
       state.byUid = Object.fromEntries(Object.values(dir).map(d => [d.uid, d]));
       renderFriends();
       renderRequests();
+      renderResults();
     }, onErr),
-    fb.watchFriendships(uid, f => { state.friends = f; renderFriends(); }, onErr),
+    fb.watchFriendships(uid, f => { state.friends = f; renderFriends(); renderResults(); }, onErr),
     fb.watchIncomingRequests(uid, r => { state.requests = r; renderRequests(); }, onErr)
   );
 }
@@ -129,6 +132,8 @@ function stopAll() {
   state.unsubs.forEach(unsub => unsub());
   state.unsubs = [];
   state.dir = {}; state.byUid = {}; state.friends = {}; state.requests = {};
+  $("search").value = "";
+  $("results").innerHTML = "";
   closeChat();
 }
 
@@ -166,18 +171,31 @@ async function answerRequest(uid, accept) {
   } catch (e) { toast(errText(e)); }
 }
 
-$("addForm").onsubmit = async e => {
-  e.preventDefault();
-  const id = $("addId").value.trim().toUpperCase();
-  if (!id) return;
-  const target = state.dir[id];
-  if (!target) return toast("No user found with that Emarni ID.");
+// Search by name or Emarni ID (partial, case-insensitive), then send a friend request.
+function renderResults() {
+  const ul = $("results"), term = $("search").value.trim().toLowerCase();
+  ul.innerHTML = "";
+  if (!term || !state.user) return;
+  const found = Object.values(state.dir)
+    .filter(u => u.uid !== state.user.uid &&
+      (String(u.displayName).toLowerCase().includes(term) || String(u.emarniId).toLowerCase().includes(term)))
+    .slice(0, 8);
+  if (!found.length) return ul.append(h("li", { className: "none", textContent: "No users found." }));
+  found.forEach(u => ul.append(h("li", {},
+    h("div", { className: "avatar", textContent: initial(u.displayName) }),
+    h("div", { className: "grow" }, h("strong", { textContent: u.displayName }), h("small", { textContent: u.emarniId })),
+    state.friends[u.uid]?.status === "accepted"
+      ? h("small", { textContent: "Friends" })
+      : h("button", { className: "btn sm", textContent: "Add", onclick: () => addFriend(u) }))));
+}
+$("search").oninput = renderResults;
+
+async function addFriend(u) {
   try {
-    await fb.sendFriendRequest(target.uid, state.profile);
-    $("addId").value = "";
-    toast("Friend request sent");
+    await fb.sendFriendRequest(u.uid, state.profile);
+    toast("Friend request sent to " + u.displayName);
   } catch (err) { toast(errText(err)); }
-};
+}
 
 /* ---------- Direct messages ---------- */
 async function openChat(uid) {
