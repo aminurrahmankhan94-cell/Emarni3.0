@@ -1,4 +1,4 @@
-import * as fb from "./firebase.js";
+import * as fb from "./firebase.js?v=7";
 
 const $ = id => document.getElementById(id);
 const h = (tag, props = {}, ...kids) => {
@@ -13,6 +13,8 @@ const state = {
   chat: null, friendUid: null, report: null,
   seq: 0, unsubMsgs: null, unsubs: []
 };
+// Set to false to show the Admin link only to admin accounts.
+const ADMIN_LINK_FOR_EVERYONE = true;
 let signupMode = false;
 const splashStart = Date.now();
 
@@ -103,7 +105,8 @@ fb.watchAuth(async user => {
     show("app");
     startWatchers();
     fb.syncAccount(user).catch(() => {});
-    fb.checkAdmin(user).then(s => $("adminLink").classList.toggle("hidden", s !== "ok"));
+    if (ADMIN_LINK_FOR_EVERYONE) $("adminLink").classList.remove("hidden");
+    else fb.checkAdmin(user).then(s => $("adminLink").classList.toggle("hidden", s !== "ok" && s !== true));
     fb.needsNotice().then(need => { if (need) $("noticeDlg").showModal(); }).catch(() => {});
   } catch (err) {
     toast(errText(err));

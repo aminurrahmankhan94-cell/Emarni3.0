@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Emarni Admin</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=7" />
 </head>
 <body>
   <!-- Admin sign in -->
@@ -15,7 +15,9 @@
       <input id="password" type="password" placeholder="Password" required autocomplete="current-password" />
       <button class="btn">Sign in</button>
       <p class="error" id="loginError"></p>
+      <button class="link hidden" id="copyUid" type="button">Copy my UID</button>
       <button class="link hidden" id="loginOut" type="button">Sign out and use another account</button>
+      <a class="link" href="index.html">Back to chat</a>
     </form>
   </main>
 
@@ -23,6 +25,7 @@
   <div class="admin hidden" id="admin">
     <div class="admin-top">
       <h1>Emarni Admin Panel</h1>
+      <a class="link" href="index.html">Back to chat</a>
       <button class="link" id="out" type="button">Sign out</button>
     </div>
     <div class="tabs">
@@ -40,6 +43,6 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="admin.js"></script>
+  <script type="module" src="admin.js?v=7"></script>
 </body>
 </html>

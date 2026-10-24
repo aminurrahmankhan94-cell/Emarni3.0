@@ -1,4 +1,4 @@
-import * as fb from "./firebase.js";
+import * as fb from "./firebase.js?v=7";
 
 const $ = id => document.getElementById(id);
 const h = (tag, props = {}, ...kids) => {
@@ -49,14 +49,17 @@ $("out").onclick = () => fb.signOutAccount();
 fb.watchAuth(async user => {
   stop();
   $("loginOut").classList.add("hidden");
+  $("copyUid").classList.add("hidden");
   if (!user) return showView(false);
   const status = await fb.checkAdmin(user);
-  if (status !== "ok") {
+  if (status !== "ok" && status !== true) {
     showView(false);
     $("loginOut").classList.remove("hidden");
+    $("copyUid").classList.toggle("hidden", status === "rules");
+    $("copyUid").onclick = () => copyText(user.uid);
     $("loginError").textContent = status === "rules"
       ? "Database rules are not published yet. Publish database.rules.json in the Firebase Console, then sign in again."
-      : `Signed in as ${user.email}, but this account is not an admin. In Realtime Database add: admins > ${user.uid} = true (boolean), then reload.`;
+      : `Signed in as ${user.email}, but this account is not an admin yet. In Firebase Console > Realtime Database > Data, add a child "admins" and inside it a child named ${user.uid} with the value true (no quotes). Then reload this page.`;
     return;
   }
   $("loginError").textContent = "";
@@ -64,6 +67,9 @@ fb.watchAuth(async user => {
   showView(true);
   start();
 });
+function copyText(text) {
+  (navigator.clipboard?.writeText(text) ?? Promise.reject()).then(() => toast("UID copied"), () => prompt("Copy this UID:", text));
+}
 $("loginOut").onclick = () => { $("loginError").textContent = ""; fb.signOutAccount(); };
 
 /* ---------- Live data ---------- */
