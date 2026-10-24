@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Emarni Admin</title>
+  <link rel="stylesheet" href="style.css?v=8" />
+</head>
+<body>
+  <!-- Admin sign in -->
+  <main class="auth" id="login">
+    <form class="card" id="loginForm">
+      <h2>Emarni Admin</h2>
+      <input id="email" type="email" placeholder="Admin email" required autocomplete="username" />
+      <input id="password" type="password" placeholder="Password" required autocomplete="current-password" />
+      <button class="btn">Sign in</button>
+      <p class="error" id="loginError"></p>
+      <button class="link hidden" id="copyUid" type="button">Copy my UID</button>
+      <button class="link hidden" id="loginOut" type="button">Sign out and use another account</button>
+      <a class="link" href="index.html">Back to chat</a>
+    </form>
+  </main>
+
+  <!-- Admin panel -->
+  <div class="admin hidden" id="admin">
+    <div class="admin-top">
+      <h1>Emarni Admin Panel</h1>
+      <a class="link" href="index.html">Back to chat</a>
+      <button class="link" id="out" type="button">Sign out</button>
+    </div>
+    <div class="tabs">
+      <button class="tab on" data-t="users" type="button">Users</button>
+      <button class="tab" data-t="reports" type="button">Reports <span id="repCount"></span></button>
+      <button class="tab" data-t="deleted" type="button">Deleted (30 days)</button>
+    </div>
+    <div class="panel" id="view"></div>
+  </div>
+
+  <dialog id="dlg" class="wide">
+    <h3 id="dlgTitle"></h3>
+    <div id="dlgBody"></div>
+    <div class="row"><button class="btn" id="dlgClose" type="button">Close</button></div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="admin.js?v=8"></script>
+</body>
+</html>
