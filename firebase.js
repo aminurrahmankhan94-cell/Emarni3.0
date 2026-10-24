@@ -501,11 +501,17 @@ export const roomIdFor = (a, b) => [a, b].sort().join("__");
 export async function checkAdmin(user) {
   try {
     if ((await user.getIdTokenResult()).claims.admin === true) return "ok";
-  } catch { /* fall back to the database flag */ }
+  } catch { /* continue */ }
   try {
-    return (await get(ref(db, `admins/${user.uid}`))).val() === true ? "ok" : "no";
+    if ((await get(ref(db, `admins/${user.uid}`))).val() === true) return "ok";
   } catch {
-    return "rules"; // permission denied: the new database rules are not published yet
+    return "rules"; // permission denied: the latest database rules are not published yet
+  }
+  try {
+    await get(ref(db, "admins")); // readable only by admins (flag, claim or the admin email in the rules)
+    return "ok";
+  } catch {
+    return "no";
   }
 }
 export const watchPath = (path, callback, onError) =>

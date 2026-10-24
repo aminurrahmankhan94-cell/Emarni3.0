@@ -1,4 +1,4 @@
-import * as fb from "./firebase.js?v=7";
+import * as fb from "./firebase.js?v=8";
 
 const $ = id => document.getElementById(id);
 const h = (tag, props = {}, ...kids) => {

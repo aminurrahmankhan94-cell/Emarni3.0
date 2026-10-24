@@ -1,4 +1,4 @@
-import * as fb from "./firebase.js?v=7";
+import * as fb from "./firebase.js?v=8";
 
 const $ = id => document.getElementById(id);
 const h = (tag, props = {}, ...kids) => {
@@ -9,7 +9,7 @@ const h = (tag, props = {}, ...kids) => {
 
 const state = {
   user: null, profile: null,
-  dir: {}, byUid: {}, friends: {}, requests: {},
+  dir: {}, byUid: {}, friends: {}, requests: {}, sent: new Set(),
   chat: null, friendUid: null, report: null,
   seq: 0, unsubMsgs: null, unsubs: []
 };
@@ -127,14 +127,14 @@ function startWatchers() {
       renderResults();
     }, onErr),
     fb.watchFriendships(uid, f => { state.friends = f; renderFriends(); renderResults(); }, onErr),
-    fb.watchIncomingRequests(uid, r => { state.requests = r; renderRequests(); }, onErr)
+    fb.watchIncomingRequests(uid, r => { state.requests = r; renderRequests(); renderResults(); }, onErr)
   );
 }
 
 function stopAll() {
   state.unsubs.forEach(unsub => unsub());
   state.unsubs = [];
-  state.dir = {}; state.byUid = {}; state.friends = {}; state.requests = {};
+  state.dir = {}; state.byUid = {}; state.friends = {}; state.requests = {}; state.sent.clear();
   $("search").value = "";
   $("results").innerHTML = "";
   closeChat();
@@ -187,15 +187,21 @@ function renderResults() {
   found.forEach(u => ul.append(h("li", {},
     h("div", { className: "avatar", textContent: initial(u.displayName) }),
     h("div", { className: "grow" }, h("strong", { textContent: u.displayName }), h("small", { textContent: u.emarniId })),
-    state.friends[u.uid]?.status === "accepted"
-      ? h("small", { textContent: "Friends" })
-      : h("button", { className: "btn sm", textContent: "Add", onclick: () => addFriend(u) }))));
+    actionFor(u))));
+}
+function actionFor(u) {
+  if (state.friends[u.uid]?.status === "accepted") return h("small", { textContent: "Friends" });
+  if (state.requests[u.uid]?.status === "pending") return h("button", { className: "btn sm", textContent: "Accept", onclick: () => answerRequest(u.uid, true) });
+  if (state.sent.has(u.uid)) return h("small", { textContent: "Request sent" });
+  return h("button", { className: "btn sm", textContent: "Add", onclick: () => addFriend(u) });
 }
 $("search").oninput = renderResults;
 
 async function addFriend(u) {
   try {
     await fb.sendFriendRequest(u.uid, state.profile);
+    state.sent.add(u.uid);
+    renderResults();
     toast("Friend request sent to " + u.displayName);
   } catch (err) { toast(errText(err)); }
 }
