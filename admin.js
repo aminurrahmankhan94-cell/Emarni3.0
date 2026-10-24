@@ -9,7 +9,7 @@ const h = (tag, props = {}, ...kids) => {
 
 const DAY = 864e5;
 const D = { dir: {}, by: {}, acc: {}, fr: {}, reports: {}, archive: {} };
-let tab = "users", live = false, unsubs = [], convoUnsubs = [];
+let tab = "users", live = false, unsubs = [], convoUnsubs = [], userQuery = "";
 
 const fmt = ts => (ts ? new Date(Number(ts)).toLocaleString() : "-");
 const nameOf = uid => D.by[uid]?.displayName || String(uid).slice(0, 8);
@@ -118,11 +118,27 @@ document.querySelectorAll(".tab").forEach(b => {
 });
 
 function usersView() {
-  const users = Object.values(D.dir).sort((a, b) => String(a.displayName).localeCompare(String(b.displayName)));
-  if (!users.length) return h("p", { className: "hint", textContent: "No users yet." });
-  return table(["Name", "Emarni ID", "Email", "Friends"], users.map(u =>
+  const allUsers = Object.values(D.dir).sort((a, b) => String(a.displayName).localeCompare(String(b.displayName)));
+  const q = userQuery.trim().toLowerCase();
+  const users = allUsers.filter(u => [u.displayName, u.emarniId, D.acc[u.uid]?.email, u.uid]
+    .some(v => String(v || "").toLowerCase().includes(q)));
+  const search = h("input", { type: "search", className: "admin-search", placeholder: "Search by name, Emarni ID, email or UID…", value: userQuery, oninput: e => {
+    userQuery = e.target.value;
+    render();
+    const next = document.querySelector(".admin-search");
+    if (next) { next.focus(); next.setSelectionRange(userQuery.length, userQuery.length); }
+  }});
+  const summary = h("div", { className: "admin-summary" },
+    h("div", { className: "summary-card" }, h("span", { textContent: "Total users" }), h("strong", { textContent: String(allUsers.length) })),
+    h("div", { className: "summary-card" }, h("span", { textContent: "Showing results" }), h("strong", { textContent: String(users.length) })),
+    h("div", { className: "summary-card" }, h("span", { textContent: "Open reports" }), h("strong", { textContent: String(Object.values(D.reports).filter(r => r.status === "open").length) }))
+  );
+  const content = h("div", { className: "admin-users" }, summary, search);
+  if (!users.length) content.append(h("p", { className: "hint empty-state", textContent: allUsers.length ? "No users match your search." : "No users yet." }));
+  else content.append(table(["Name", "Emarni ID", "Email", "Friends"], users.map(u =>
     tr([u.displayName, u.emarniId, D.acc[u.uid]?.email || "-", String(friendsOf(u.uid).length)],
-      { className: "click", onclick: () => userDialog(u) })));
+      { className: "click", onclick: () => userDialog(u) }))));
+  return content;
 }
 
 function reportsView() {
@@ -171,8 +187,9 @@ function userDialog(u) {
     h("p", { textContent: `UID: ${u.uid}` }),
     h("p", { textContent: `Joined: ${fmt(u.createdAt)}` }));
   if (email) {
+    body.append(h("p", { className: "hint reset-note", textContent: "For security, existing passwords are never visible to admins. Send a reset link so the user can create a new password." }));
     body.append(btn("Send password reset email", () =>
-      fb.sendResetEmail(email).then(() => toast("Reset email sent"), e => toast(e.message)), "link"));
+      fb.sendResetEmail(email).then(() => toast("Password reset email sent"), e => toast(e.message)), "btn sm"));
   }
   body.append(h("h3", { textContent: "Friends" }));
   const ul = h("ul", { className: "list" });
