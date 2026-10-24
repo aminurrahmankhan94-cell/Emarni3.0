@@ -1,107 +1,44 @@
 <!DOCTYPE html>
-<html lang="bn">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Safety & Monitoring Panel</title>
-    <link rel="stylesheet" href="style.css">
-    <style>
-        .admin-container { padding: 20px; max-width: 1200px; margin: 0 auto; }
-        .admin-section { background: #fff; padding: 15px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .table-custom { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .table-custom th, .table-custom td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        .table-custom th { background-color: #f4f4f4; }
-        .badge-danger { background: red; color: white; padding: 3px 7px; border-radius: 4px; font-size: 12px; }
-        #adminLoginCard { max-width: 400px; margin: 100px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Emarni Admin</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- Admin sign in -->
+  <main class="auth" id="login">
+    <form class="card" id="loginForm">
+      <h2>Emarni Admin</h2>
+      <input id="email" type="email" placeholder="Admin email" required autocomplete="username" />
+      <input id="password" type="password" placeholder="Password" required autocomplete="current-password" />
+      <button class="btn">Sign in</button>
+      <p class="error" id="loginError"></p>
+    </form>
+  </main>
 
-    <!-- Admin Authentication View -->
-    <div id="adminLoginCard">
-        <h2>Admin Authentication</h2>
-        <input type="text" id="adminUser" placeholder="Admin Username" style="width:100%; margin-bottom:10px; padding:8px;">
-        <input type="password" id="adminPass" placeholder="Admin Password" style="width:100%; margin-bottom:10px; padding:8px;">
-        <button onclick="loginAdmin()" style="width:100%; padding:10px; background:#007bff; color:white; border:none; border-radius:4px;">Login to Panel</button>
-        <p id="adminLoginErr" style="color:red; font-size:12px; display:none;">Invalid Credentials!</p>
+  <!-- Admin panel -->
+  <div class="admin hidden" id="admin">
+    <div class="admin-top">
+      <h1>Emarni Admin Panel</h1>
+      <button class="link" id="out" type="button">Sign out</button>
     </div>
-
-    <!-- Admin Dashboard View -->
-    <div id="adminDashboard" class="admin-container" style="display:none;">
-        <h1>Safety & System Admin Dashboard</h1>
-        <button onclick="logoutAdmin()" style="float:right; margin-top:-40px; background:#dc3545; color:#fff; border:none; padding:8px 12px; border-radius:4px;">Logout</button>
-        <hr>
-
-        <!-- Registered Users Section -->
-        <div class="admin-section">
-            <h3>Registered Users & Profiles</h3>
-            <table class="table-custom">
-                <thead>
-                    <tr>
-                        <th>User ID</th>
-                        <th>User Name</th>
-                        <th>Email</th>
-                        <th>Password (Masked/Stored)</th>
-                        <th>Friends Count</th>
-                        <th>Friends List</th>
-                    </tr>
-                </thead>
-                <tbody id="userTableBody"></tbody>
-            </table>
-        </div>
-
-        <!-- Reports Section -->
-        <div class="admin-section">
-            <h3>User Reports & Complaints</h3>
-            <table class="table-custom">
-                <thead>
-                    <tr>
-                        <th>Report ID</th>
-                        <th>Reported By</th>
-                        <th>Target User</th>
-                        <th>Reason</th>
-                        <th>Timestamp</th>
-                    </tr>
-                </thead>
-                <tbody id="reportTableBody"></tbody>
-            </table>
-        </div>
-
-        <!-- Live Chat Inspector (Safety Purpose) -->
-        <div class="admin-section">
-            <h3>Live Conversation Inspector (Safety Purpose)</h3>
-            <div style="display:flex; gap:10px; margin-bottom:10px;">
-                <select id="user1Select" style="padding:8px; flex:1;"></select>
-                <select id="user2Select" style="padding:8px; flex:1;"></select>
-                <button onclick="inspectChat()" style="padding:8px 15px; background:#28a745; color:white; border:none; border-radius:4px;">Inspect Chat</button>
-            </div>
-            <div id="chatInspectorBox" style="height:250px; border:1px solid #ccc; overflow-y:scroll; padding:10px; background:#f9f9f9;">
-                <p style="color:#777;">Select two users to inspect their conversation history...</p>
-            </div>
-        </div>
-
-        <!-- Deleted Messages (30 Days Recovery Vault) -->
-        <div class="admin-section">
-            <h3>Deleted Messages Vault (Retained for 30 Days)</h3>
-            <table class="table-custom">
-                <thead>
-                    <tr>
-                        <th>Sender ID</th>
-                        <th>Receiver ID</th>
-                        <th>Deleted Content</th>
-                        <th>Deletion Time</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="deletedMsgTableBody"></tbody>
-            </table>
-        </div>
+    <div class="tabs">
+      <button class="tab on" data-t="users" type="button">Users</button>
+      <button class="tab" data-t="reports" type="button">Reports <span id="repCount"></span></button>
+      <button class="tab" data-t="deleted" type="button">Deleted (30 days)</button>
     </div>
+    <div class="panel" id="view"></div>
+  </div>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="firebase.js"></script>
-    <script src="admin.js"></script>
+  <dialog id="dlg" class="wide">
+    <h3 id="dlgTitle"></h3>
+    <div id="dlgBody"></div>
+    <div class="row"><button class="btn" id="dlgClose" type="button">Close</button></div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="admin.js"></script>
 </body>
 </html>
